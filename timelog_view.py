@@ -1,5 +1,22 @@
-"""Parse  timelog files, filter the lines and output interesting data"""
+#!/usr/bin/env python3
 
+#	Parse timelog files, filter the lines and output interesting data
+#	Copyright (C) 2014 Tobias Bengfort <tobias.bengfort@gmx.net>
+#
+#	This program is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#
+#	This program is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import argparse
 from datetime import datetime, timedelta
 
 EMPTY_LINE = object()
@@ -78,7 +95,7 @@ def timedelta2str(delta):
 	seconds = delta.total_seconds()
 	minutes, seconds = divmod(seconds, 60)
 	hours, minutes = divmod(minutes, 60)
-	return "{}:{:0=2}:{:0=2}".format(int(hours), int(minutes), int(seconds))
+	return "{: =3}:{:0=2}".format(int(hours), int(minutes))
 
 
 class Query:
@@ -136,7 +153,7 @@ class Query:
 		self.before(datetime_add(start, years=offset + 1))
 
 	def all(self):
-		return (self.timelog[i] for i in self.data)
+		return tuple(self.timelog[i] for i in self.data)
 
 
 """extract information"""
@@ -169,12 +186,12 @@ class Extractor:
 		return d
 
 
-"""Feiertage"""
+"""Holidays"""
 class ExpectedHoursPer:
 	WORKDAYS_PER_WEEK = 5
+	WORKHOURS_PER_WEEK = 35
 	HOLIDAYS_PER_YEAR = 9
 	VACATION_DAYS_PER_YEAR = 30
-	WORKHOURS_PER_WEEK = 35
 
 	@classmethod
 	def day(cls):
@@ -193,55 +210,94 @@ class ExpectedHoursPer:
 		return int(cls.day() * cls._workdays_per_year())
 
 	@classmethod
+	def days(cls, n):
+		"""interpolation between day and year"""
+		from math import exp
+		f = lambda x: 2 / (1 + exp(-x / 7) / exp(-1 / 7)) - 1
+		d1 = cls.day()
+		d2 = cls.year() / 365
+		fn = f(n)
+		d = (1-fn) * d1 + fn * d2
+		return d * n
+
+	@classmethod
 	def _workdays_per_year(cls):
 		return ((365 - cls.HOLIDAYS_PER_YEAR) * cls.WORKDAYS_PER_WEEK / 7
 			- cls.VACATION_DAYS_PER_YEAR)
 
 
 """cli"""
-def timelog2csv():
-	f = open('timelog.txt')
-	l = [line.strip() for line in f.readlines() if line.strip()]
-	ll = LazyTimelog(l)
-	f.close()
-
-	def day(entry):
-		return entry['dt'].strftime('%Y-%m-%d')
-
-	x = timedelta()
-	last = None
-	for entry in ll:
-		if last is not None:
-			if day(last) != day(entry):
-				print('"%s","%s"' % (day(last), int(x.total_seconds() / 3600)))
-				x = timedelta()
-
-			if '**' not in entry['comment']:
-				x += entry['dt'] - last['dt']
-		last = entry
+#def timelog2csv():
+#	f = open('timelog.txt')
+#	l = [line.strip() for line in f.readlines() if line.strip()]
+#	data = LazyTimelog(l)
+#	f.close()
+#
+#	def day(entry):
+#		return entry['dt'].strftime('%Y-%m-%d')
+#
+#	x = timedelta()
+#	last = None
+#	for entry in data:
+#		if last is not None:
+#			if day(last) != day(entry):
+#				print('"%s","%s"' % (day(last), int(x.total_seconds() / 3600)))
+#				x = timedelta()
+#
+#			if '**' not in entry['comment']:
+#				x += entry['dt'] - last['dt']
+#		last = entry
 
 
 if __name__ == '__main__':
-	"""
-	f = open('timelog.txt')
+	parser = argparse.ArgumentParser(
+		description='extract interesting data from timelogs')
+	parser.add_argument('file')
+	parser.add_argument('-d', '--day', nargs='?', const=0, type=int,
+		help="show entries from today or DAY days ago")
+	parser.add_argument('-w', '--week', nargs='?', const=0, type=int,
+		help="show entries from this week or WEEK weeks ago")
+	parser.add_argument('-m', '--month', nargs='?', const=0, type=int,
+		help="show entries from this month or MONTH months ago")
+	parser.add_argument('-y', '--year', nargs='?', const=0, type=int,
+		help="show entries from this year or YEAR years ago")
+	args = parser.parse_args()
+
+	# load data from file
+	f = open(args.file)
 	l = [line.strip() for line in f.readlines() if line.strip()]
-	ll = LazyTimelog(l)
+	data = LazyTimelog(l)
 	f.close()
 
-	q = Query(ll)
-	q.month(offset=-3)
+	# filter
+	q = Query(data)
+	if args.day is not None:
+		q.day(offset=-args.day)
+		expected = ExpectedHoursPer.day()
+	elif args.week is not None:
+		q.week(offset=-args.week)
+		expected = ExpectedHoursPer.week()
+	elif args.month is not None:
+		q.month(offset=-args.month)
+		expected = ExpectedHoursPer.month()
+	elif args.year is not None:
+		q.year(offset=-args.year)
+		expected = ExpectedHoursPer.year()
+	else:
+		expected = ExpectedHoursPer.days(
+			(data[-1]['dt'] - data[0]['dt']).total_seconds() / 3600 / 24)
+	data = q.all()
 
-	for line in q.all():
-		print(line)
+	ex = Extractor(data)
 
-	ex = Extractor(q.all())
-
+	# output by comment
 	by_comment = ex.by_comment()
-	l = max(len(k) for k in by_comment.keys())
-	for comment, delta in by_comment.items():
-		print(comment + (l + 2 - len(comment)) * ' ' + timedelta2str(delta))
-	print(timedelta2str(ex.sum()))
+	if len(by_comment) > 0:
+		l = max(len(k) for k in by_comment.keys())
+		for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
+			print(comment + (l + 1 - len(comment)) * ' ' + timedelta2str(delta))
+		print()
 
-	print(ExpectedHoursPer.month())
-	"""
-	timelog2csv()
+	# output total workhours
+	done = int(ex.sum().total_seconds() / 3600)
+	print("Total workhours done: %i (%i extra)" % (done, done - expected))
