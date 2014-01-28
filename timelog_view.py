@@ -17,6 +17,7 @@
 #	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+from os.path import expanduser
 from datetime import datetime, timedelta
 
 EMPTY_LINE = object()
@@ -252,7 +253,8 @@ class ExpectedHoursPer:
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(
 		description='extract interesting data from timelogs')
-	parser.add_argument('file')
+	parser.add_argument('--file',
+		default=expanduser("~/.gtimelog/timelog.txt"))
 	parser.add_argument('-d', '--day', nargs='?', const=0, type=int,
 		help="show entries from today or DAY days ago")
 	parser.add_argument('-w', '--week', nargs='?', const=0, type=int,
