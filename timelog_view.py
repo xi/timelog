@@ -111,6 +111,9 @@ class Query:
 		def get(i):
 			return self.timelog[self.data[i]]['dt']
 
+		if (after and get(low) > dt) or (not after and get(high) < dt):
+			return
+
 		while high - low > 1:
 			new = int((low + high) / 2)
 			if get(new) <= dt:
