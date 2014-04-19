@@ -1,0 +1,12 @@
+#!/bin/sh
+
+mkdir -p ~/.gtimelog
+
+t=`date '+%F %H:%M'`
+
+if [ x"$1" = x"arrive" ]; then
+	echo >> ~/.gtimelog/timelog.txt
+	echo "$t: arrive **" >> ~/.gtimelog/timelog.txt
+else
+	echo "$t: $@" >> ~/.gtimelog/timelog.txt
+fi
