@@ -1,30 +1,29 @@
 #!/usr/bin/env python3
 
-#	Parse timelog files, filter the lines and output interesting data
-#	Copyright (C) 2014 Tobias Bengfort <tobias.bengfort@posteo.de>
+# Parse timelog files, filter the lines and output interesting data
+# Copyright (C) 2014 Tobias Bengfort <tobias.bengfort@posteo.de>
 #
-#	This program is free software: you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation, either version 3 of the License, or
-#	(at your option) any later version.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-#	This program is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#	You should have received a copy of the GNU General Public License
-#	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-from os.path import expanduser
+import os
 from datetime import datetime, timedelta
 
 EMPTY_LINE = object()
 DT_FORMAT = '%Y-%m-%d %H:%M'
 
 
-"""parse"""
 class ParseError(Exception):
 	def __init__(self, line, msg=''):
 		self.line = line
@@ -72,7 +71,6 @@ class LazyTimelog(LazyTuple):
 			raise ParseError(i, str(e))
 
 
-"""filter"""
 def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0,
 		seconds=0, microseconds=0):
 	dt += timedelta(
@@ -81,22 +79,24 @@ def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0,
 		hours=hours,
 		minutes=minutes,
 		seconds=seconds,
-		microseconds=microseconds)
+		microseconds=microseconds,
+	)
 
 	month = dt.month + months
 	div, month = divmod(month - 1, 12)
 	month += 1
 	year = dt.year + years + div
 
-	return datetime(year, month, dt.day, dt.hour, dt.minute, dt.second,
-		dt.microsecond)
+	return datetime(
+		year, month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond
+	)
 
 
 def timedelta2str(delta):
 	seconds = delta.total_seconds()
 	minutes, seconds = divmod(seconds, 60)
 	hours, minutes = divmod(minutes, 60)
-	return "{: =3}:{:0=2}".format(int(hours), int(minutes))
+	return '{: =3}:{:0=2}'.format(int(hours), int(minutes))
 
 
 class Query:
@@ -160,7 +160,6 @@ class Query:
 		return tuple(self.timelog[i] for i in self.data)
 
 
-"""extract information"""
 class Extractor:
 	def __init__(self, data):
 		self.data = tuple(data)
@@ -190,7 +189,6 @@ class Extractor:
 		return d
 
 
-"""Holidays"""
 class ExpectedHoursPer:
 	WORKDAYS_PER_WEEK = 5
 	WORKHOURS_PER_WEEK = 35
@@ -230,42 +228,19 @@ class ExpectedHoursPer:
 			- cls.VACATION_DAYS_PER_YEAR)
 
 
-"""cli"""
-#def timelog2csv():
-#	f = open('timelog.txt')
-#	l = [line.strip() for line in f.readlines() if line.strip()]
-#	data = LazyTimelog(l)
-#	f.close()
-#
-#	def day(entry):
-#		return entry['dt'].strftime('%Y-%m-%d')
-#
-#	x = timedelta()
-#	last = None
-#	for entry in data:
-#		if last is not None:
-#			if day(last) != day(entry):
-#				print('"%s","%s"' % (day(last), int(x.total_seconds() / 3600)))
-#				x = timedelta()
-#
-#			if '**' not in entry['comment']:
-#				x += entry['dt'] - last['dt']
-#		last = entry
-
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(
 		description='extract interesting data from timelogs')
 	parser.add_argument('--file',
-		default=expanduser("~/.gtimelog/timelog.txt"))
+		default=os.path.expanduser('~/.gtimelog/timelog.txt'))
 	parser.add_argument('-d', '--day', nargs='?', const=0, type=int,
-		help="show entries from today or DAY days ago")
+		help='show entries from today or DAY days ago')
 	parser.add_argument('-w', '--week', nargs='?', const=0, type=int,
-		help="show entries from this week or WEEK weeks ago")
+		help='show entries from this week or WEEK weeks ago')
 	parser.add_argument('-m', '--month', nargs='?', const=0, type=int,
-		help="show entries from this month or MONTH months ago")
+		help='show entries from this month or MONTH months ago')
 	parser.add_argument('-y', '--year', nargs='?', const=0, type=int,
-		help="show entries from this year or YEAR years ago")
+		help='show entries from this year or YEAR years ago')
 	args = parser.parse_args()
 
 	# load data from file
@@ -290,7 +265,8 @@ if __name__ == '__main__':
 		expected = ExpectedHoursPer.year()
 	else:
 		expected = ExpectedHoursPer.days(
-			(data[-1]['dt'] - data[0]['dt']).total_seconds() / 3600 / 24)
+			(data[-1]['dt'] - data[0]['dt']).total_seconds() / 3600 / 24
+		)
 	data = q.all()
 
 	ex = Extractor(data)
@@ -305,4 +281,4 @@ if __name__ == '__main__':
 
 	# output total workhours
 	done = int(ex.sum().total_seconds() / 3600)
-	print("Total workhours done: %i (%i extra)" % (done, done - expected))
+	print('Total workhours done: %i (%i extra)' % (done, done - expected))
