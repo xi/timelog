@@ -9,6 +9,8 @@ t=`date '+%F %H:%M'`
 if [ x"$1" = x"arrive" ]; then
 	echo >> $log
 	echo "$t: arrive **" >> $log
+elif [ x"$1" = x"edit" ]; then
+	$EDITOR $log
 else
 	echo "$t: $@" >> $log
 fi
