@@ -1,12 +1,14 @@
 #!/bin/sh
 
-mkdir -p ~/.gtimelog
+log=~/.gtimelog/timelog.txt
+
+mkdir -p `dirname $log`
 
 t=`date '+%F %H:%M'`
 
 if [ x"$1" = x"arrive" ]; then
-	echo >> ~/.gtimelog/timelog.txt
-	echo "$t: arrive **" >> ~/.gtimelog/timelog.txt
+	echo >> $log
+	echo "$t: arrive **" >> $log
 else
-	echo "$t: $@" >> ~/.gtimelog/timelog.txt
+	echo "$t: $@" >> $log
 fi
