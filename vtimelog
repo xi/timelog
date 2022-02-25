@@ -54,8 +54,7 @@ def parse_line(line):
 	}
 
 
-def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0,
-		seconds=0, microseconds=0):
+def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0):  # noqa
 	dt += timedelta(
 		weeks=weeks,
 		days=days,
@@ -194,13 +193,15 @@ class ExpectedHoursPer:
 		d1 = cls.day()
 		d2 = cls.year() / 365
 		fn = 2 / (1 + exp(-n / 7) / exp(-1 / 7)) - 1
-		d = (1-fn) * d1 + fn * d2
+		d = (1 - fn) * d1 + fn * d2
 		return d * n
 
 	@classmethod
 	def _workdays_per_year(cls):
-		return ((365 - cls.HOLIDAYS_PER_YEAR) * cls.WORKDAYS_PER_WEEK / 7
-			- cls.VACATION_DAYS_PER_YEAR)
+		return (
+			(365 - cls.HOLIDAYS_PER_YEAR) * cls.WORKDAYS_PER_WEEK / 7
+			- cls.VACATION_DAYS_PER_YEAR
+		)
 
 
 if __name__ == '__main__':
@@ -220,8 +221,8 @@ if __name__ == '__main__':
 
 	# load data from file
 	with open(args.file) as fh:
-		l = [line.strip() for line in fh.readlines() if line.strip()]
-		data = LazyMap(l, parse_line)
+		lines = [line.strip() for line in fh.readlines() if line.strip()]
+		data = LazyMap(lines, parse_line)
 
 	# filter
 	q = Query(data)
@@ -247,9 +248,9 @@ if __name__ == '__main__':
 	# output by comment
 	by_comment = extractor.by_comment()
 	if len(by_comment) > 0:
-		l = max(len(k) for k in by_comment.keys())
+		length = max(len(k) for k in by_comment.keys())
 		for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
-			padding = ' ' * (l + 1 - len(comment))
+			padding = ' ' * (length + 1 - len(comment))
 			print(comment + padding + timedelta2str(delta))
 		print()
 
