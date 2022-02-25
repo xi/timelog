@@ -24,6 +24,12 @@ EMPTY_LINE = object()
 DT_FORMAT = '%Y-%m-%d %H:%M'
 
 
+def pairwise(items):
+	# backport of itertools.pairwise from python 3.10
+	for i in range(len(items) - 1):
+		yield items[i], items[i + 1]
+
+
 class ParseError(Exception):
 	def __init__(self, line, msg=''):
 		self.line = line
@@ -165,27 +171,18 @@ class Extractor:
 		self.data = tuple(data)
 
 	def sum(self):
-		x = timedelta()
-		last = None
-		for entry in self.data:
-			if last is not None:
-				if '**' not in entry['comment']:
-					x += entry['dt'] - last['dt']
-			last = entry
-		return x
+		return sum((
+			entry['dt'] - prev['dt']
+			for prev, entry in pairwise(self.data)
+			if '**' not in entry['comment']
+		), start=timedelta())
 
 	def by_comment(self):
 		d = {}
-		last = None
-		for entry in self.data:
-			if last is not None:
-				if '**' not in entry['comment']:
-					delta = entry['dt'] - last['dt']
-					if entry['comment'] in d:
-						d[entry['comment']] += delta
-					else:
-						d[entry['comment']] = delta
-			last = entry
+		for prev, entry in pairwise(self.data):
+			if '**' not in entry['comment']:
+				d.setdefault(entry['comment'], timedelta())
+				d[entry['comment']] += entry['dt'] - prev['dt']
 		return d
 
 
