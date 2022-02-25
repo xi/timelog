@@ -30,15 +30,6 @@ def pairwise(items):
 		yield items[i], items[i + 1]
 
 
-class ParseError(Exception):
-	def __init__(self, line, msg=''):
-		self.line = line
-		self.msg = msg
-
-	def __str__(self):
-		return 'ParseError in line %i: %s' % (self.line, self.msg)
-
-
 class LazyTuple(tuple):
 	def __init__(self, src):
 		self._src = tuple(src)
@@ -64,17 +55,14 @@ class LazyTuple(tuple):
 
 class LazyTimelog(LazyTuple):
 	def parse(self, i):
-		try:
-			s = self._src[i]
-			if s == '':
-				return EMPTY_LINE
-			dt, comment = s.split(': ', 1)
-			return {
-				'dt': datetime.strptime(dt, DT_FORMAT),
-				'comment': comment
-			}
-		except Exception as e:
-			raise ParseError(i, str(e))
+		s = self._src[i]
+		if s == '':
+			return EMPTY_LINE
+		dt, comment = s.split(': ', 1)
+		return {
+			'dt': datetime.strptime(dt, DT_FORMAT),
+			'comment': comment
+		}
 
 
 def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0,
