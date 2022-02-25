@@ -155,6 +155,17 @@ class Extractor:
 			if '**' not in entry['comment']
 		), start=timedelta())
 
+	def by_date(self):
+		dates = {}
+		for entry in self.data:
+			date = entry['dt'].date()
+			if date not in dates:
+				dates[date] = []
+			dates[date].append(entry)
+		for date, entries in dates.items():
+			e = Extractor(entries)
+			yield entries[0]['dt'], entries[-1]['dt'], e.sum()
+
 	def by_comment(self):
 		d = {}
 		for prev, entry in pairwise(self.data):
@@ -219,6 +230,8 @@ if __name__ == '__main__':
 		help='show entries from this year or YEAR years ago')
 	parser.add_argument('-c', '--check', action='store_true',
 		help='find potential issues')
+	parser.add_argument('-s', '--timesheet', action='store_true',
+		help='output as timesheet CSV')
 	args = parser.parse_args()
 
 	# load data from file
@@ -255,15 +268,24 @@ if __name__ == '__main__':
 	else:
 		extractor = Extractor(q.all())
 
-		# output by comment
-		by_comment = extractor.by_comment()
-		if len(by_comment) > 0:
-			length = max(len(k) for k in by_comment.keys())
-			for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
-				padding = ' ' * (length + 1 - len(comment))
-				print(comment + padding + timedelta2str(delta))
-			print()
+		if args.timesheet:
+			for start, end, total in extractor.by_date():
+				date = start.strftime('%Y-%m-%d')
+				s = start.strftime('%H:%M')
+				e = end.strftime('%H:%M')
+				_break = ((end - start) - total).total_seconds()
+				b = '{:02d}:{:02d}'.format(int(_break / 60 / 60), int(_break / 60 % 60))
+				print('{}\t{}\t{}\t{}'.format(date, s, e, b))
+		else:
+			# output by comment
+			by_comment = extractor.by_comment()
+			if len(by_comment) > 0:
+				length = max(len(k) for k in by_comment.keys())
+				for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
+					padding = ' ' * (length + 1 - len(comment))
+					print(comment + padding + timedelta2str(delta))
+				print()
 
-		# output total workhours
-		done = int(extractor.sum().total_seconds() / 3600)
-		print('Total workhours done: %i (%i extra)' % (done, done - expected))
+			# output total workhours
+			done = int(extractor.sum().total_seconds() / 3600)
+			print('Total workhours done: %i (%i extra)' % (done, done - expected))
