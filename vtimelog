@@ -215,10 +215,9 @@ class ExpectedHoursPer:
 	def days(cls, n):
 		"""interpolation between day and year"""
 		from math import exp
-		f = lambda x: 2 / (1 + exp(-x / 7) / exp(-1 / 7)) - 1
 		d1 = cls.day()
 		d2 = cls.year() / 365
-		fn = f(n)
+		fn = 2 / (1 + exp(-n / 7) / exp(-1 / 7)) - 1
 		d = (1-fn) * d1 + fn * d2
 		return d * n
 
@@ -244,10 +243,9 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	# load data from file
-	f = open(args.file)
-	l = [line.strip() for line in f.readlines() if line.strip()]
-	data = LazyTimelog(l)
-	f.close()
+	with open(args.file) as fh:
+		l = [line.strip() for line in fh.readlines() if line.strip()]
+		data = LazyTimelog(l)
 
 	# filter
 	q = Query(data)
@@ -267,18 +265,18 @@ if __name__ == '__main__':
 		expected = ExpectedHoursPer.days(
 			(data[-1]['dt'] - data[0]['dt']).total_seconds() / 3600 / 24
 		)
-	data = q.all()
 
-	ex = Extractor(data)
+	extractor = Extractor(q.all())
 
 	# output by comment
-	by_comment = ex.by_comment()
+	by_comment = extractor.by_comment()
 	if len(by_comment) > 0:
 		l = max(len(k) for k in by_comment.keys())
 		for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
-			print(comment + (l + 1 - len(comment)) * ' ' + timedelta2str(delta))
+			padding = ' ' * (l + 1 - len(comment))
+			print(comment + padding + timedelta2str(delta))
 		print()
 
 	# output total workhours
-	done = int(ex.sum().total_seconds() / 3600)
+	done = int(extractor.sum().total_seconds() / 3600)
 	print('Total workhours done: %i (%i extra)' % (done, done - expected))
