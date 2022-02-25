@@ -217,6 +217,8 @@ if __name__ == '__main__':
 		help='show entries from this month or MONTH months ago')
 	parser.add_argument('-y', '--year', nargs='?', const=0, type=int,
 		help='show entries from this year or YEAR years ago')
+	parser.add_argument('-c', '--check', action='store_true',
+		help='find potential issues')
 	args = parser.parse_args()
 
 	# load data from file
@@ -243,17 +245,25 @@ if __name__ == '__main__':
 			(data[-1]['dt'] - data[0]['dt']).total_seconds() / 3600 / 24
 		)
 
-	extractor = Extractor(q.all())
+	if args.check:
+		for entry, prev in pairwise(q.all()):
+			delta = entry['dt'] - prev['dt']
+			if delta < timedelta(0) or (
+				'**' not in entry['comment'] and delta > timedelta(hours=12)
+			):
+				print(entry['dt'].strftime(DT_FORMAT) + ': ' + entry['comment'])
+	else:
+		extractor = Extractor(q.all())
 
-	# output by comment
-	by_comment = extractor.by_comment()
-	if len(by_comment) > 0:
-		length = max(len(k) for k in by_comment.keys())
-		for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
-			padding = ' ' * (length + 1 - len(comment))
-			print(comment + padding + timedelta2str(delta))
-		print()
+		# output by comment
+		by_comment = extractor.by_comment()
+		if len(by_comment) > 0:
+			length = max(len(k) for k in by_comment.keys())
+			for comment, delta in sorted(by_comment.items(), key=lambda a: a[1]):
+				padding = ' ' * (length + 1 - len(comment))
+				print(comment + padding + timedelta2str(delta))
+			print()
 
-	# output total workhours
-	done = int(extractor.sum().total_seconds() / 3600)
-	print('Total workhours done: %i (%i extra)' % (done, done - expected))
+		# output total workhours
+		done = int(extractor.sum().total_seconds() / 3600)
+		print('Total workhours done: %i (%i extra)' % (done, done - expected))
