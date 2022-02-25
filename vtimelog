@@ -107,30 +107,32 @@ def timedelta2str(delta):
 
 class Query:
 	def __init__(self, timelog):
-		self.data = range(len(timelog))
+		self.start = 0
+		self.stop = len(timelog)
 		self.timelog = timelog
 
 	def split(self, dt, after):
-		low = 0
-		high = len(self.data) - 1
+		low = self.start
+		high = self.stop - 1
 
-		def get(i):
-			return self.timelog[self.data[i]]['dt']
-
-		if (after and get(low) > dt) or (not after and get(high) < dt):
-			return
+		if after:
+			if self.timelog[low]['dt'] > dt:
+				return
+		else:
+			if self.timelog[high]['dt'] < dt:
+				return
 
 		while high - low > 1:
 			new = int((low + high) / 2)
-			if get(new) <= dt:
+			if self.timelog[new]['dt'] <= dt:
 				low = new
 			else:
 				high = new
 
 		if after:
-			self.data = self.data[high:]
+			self.start = high
 		else:
-			self.data = self.data[:high]
+			self.stop = high
 
 	def before(self, dt):
 		self.split(dt, False)
@@ -163,7 +165,7 @@ class Query:
 		self.before(datetime_add(start, years=offset + 1))
 
 	def all(self):
-		return tuple(self.timelog[i] for i in self.data)
+		return [self.timelog[i] for i in range(self.start, self.stop)]
 
 
 class Extractor:
