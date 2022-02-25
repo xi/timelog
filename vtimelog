@@ -20,7 +20,6 @@ import argparse
 import os
 from datetime import datetime, timedelta
 
-EMPTY_LINE = object()
 DT_FORMAT = '%Y-%m-%d %H:%M'
 
 
@@ -30,39 +29,29 @@ def pairwise(items):
 		yield items[i], items[i + 1]
 
 
-class LazyTuple(tuple):
-	def __init__(self, src):
-		self._src = tuple(src)
-		self._data = []
-		for line in self._src:
-			self._data.append(None)
+class LazyMap:
+	def __init__(self, src, fn):
+		self._src = src
+		self._fn = fn
+		self._cache = {}
 
 	def __len__(self):
 		return len(self._src)
 
-	def __iter__(self):
-		for i in range(len(self)):
-			yield self[i]
-
-	def __getitem__(self, i):
-		if self._data[i] is None:
-			self._data[i] = self.parse(i)
-		return self._data[i]
-
-	def parse(self, i):
-		raise NotImplementedError()
+	def __getitem__(self, key):
+		if isinstance(key, int) and key < 0:
+			key += len(self)
+		if key not in self._cache:
+			self._cache[key] = self._fn(self._src[key])
+		return self._cache[key]
 
 
-class LazyTimelog(LazyTuple):
-	def parse(self, i):
-		s = self._src[i]
-		if s == '':
-			return EMPTY_LINE
-		dt, comment = s.split(': ', 1)
-		return {
-			'dt': datetime.strptime(dt, DT_FORMAT),
-			'comment': comment
-		}
+def parse_line(line):
+	dt, comment = line.split(': ', 1)
+	return {
+		'dt': datetime.strptime(dt, DT_FORMAT),
+		'comment': comment
+	}
 
 
 def datetime_add(dt, years=0, months=0, weeks=0, days=0, hours=0, minutes=0,
@@ -158,7 +147,7 @@ class Query:
 
 class Extractor:
 	def __init__(self, data):
-		self.data = tuple(data)
+		self.data = data
 
 	def sum(self):
 		return sum((
@@ -232,7 +221,7 @@ if __name__ == '__main__':
 	# load data from file
 	with open(args.file) as fh:
 		l = [line.strip() for line in fh.readlines() if line.strip()]
-		data = LazyTimelog(l)
+		data = LazyMap(l, parse_line)
 
 	# filter
 	q = Query(data)
