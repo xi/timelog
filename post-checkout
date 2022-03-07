@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ x"$3" = x"1" ]; then
+    branch=$(git name-rev --name-only $1)
+    if [ x"$branch" != x"main" ]; then
+        timelog $branch
+    fi
+fi
