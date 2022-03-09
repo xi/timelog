@@ -259,7 +259,7 @@ if __name__ == '__main__':
 		)
 
 	if args.check:
-		for entry, prev in pairwise(q.all()):
+		for prev, entry in pairwise(q.all()):
 			delta = entry['dt'] - prev['dt']
 			if delta < timedelta(0) or (
 				'**' not in entry['comment'] and delta > timedelta(hours=12)
